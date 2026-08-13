@@ -26,6 +26,7 @@ Thumbs.db
 .idea/
 .vscode/
 .windsurf/workflows/
+work/
 
 # Temporary files
 tmp/
