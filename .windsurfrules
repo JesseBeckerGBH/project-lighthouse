@@ -1,0 +1,8 @@
+# Project Lighthouse Cascade rules
+
+- Before proposing or making any project change, read `lighthouse-spec-v0.1.md` in full.
+- Treat `lighthouse-spec-v0.1.md` as the pinned source of truth for architecture, prompts, routes, tool contracts, safety boundaries, and demo scope.
+- Use Node.js, TypeScript, and Express. Do not substitute another runtime or framework without an approved spec update.
+- Preserve the demo-day feature freeze. Do not add real scheduling, real payments, card collection, autonomous emergency dispatch, technician assignment, ETA promises, or unsupported business facts.
+- Update the spec first and obtain explicit approval before changing a pinned contract or expanding scope.
+- Never create, commit, display, or log a real `.env` value or credential. Use `.env.example` only for variable names and safe placeholders.
