@@ -14,6 +14,7 @@ export interface Config {
   businessTimezone: string;
   businessHours: string;
   businessServiceArea: string;
+  businessServices: string;
   schedulerMode: string;
   notificationMode: string;
   logLevel: string;
@@ -36,6 +37,7 @@ function collectMissing(env: NodeJS.ProcessEnv): string[] {
     'BUSINESS_TIMEZONE',
     'BUSINESS_HOURS',
     'BUSINESS_SERVICE_AREA',
+    'BUSINESS_SERVICES',
     'SCHEDULER_MODE',
     'NOTIFICATION_MODE',
     'LOG_LEVEL',
@@ -83,6 +85,7 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): Config {
     businessTimezone: env.BUSINESS_TIMEZONE!,
     businessHours: env.BUSINESS_HOURS!,
     businessServiceArea: env.BUSINESS_SERVICE_AREA!,
+    businessServices: env.BUSINESS_SERVICES!,
     schedulerMode: env.SCHEDULER_MODE!,
     notificationMode: env.NOTIFICATION_MODE!,
     logLevel: env.LOG_LEVEL!,

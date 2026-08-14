@@ -234,6 +234,58 @@ describe('realtime bridge', () => {
     expect(clearEvents[0].streamSid).toBe('stream-1');
   });
 
+  it('greets the caller once the session is ready and the stream has started', async () => {
+    const twilio = createMockTwilioWebSocket();
+    const client = createMockClient();
+    const bridge = new RealtimeBridge(twilio, client);
+
+    bridge.handleTwilioMessage({
+      event: 'start',
+      start: { streamSid: 'stream-1', callSid: 'call-1' },
+    });
+    await client.emit({ type: 'session.created' });
+
+    const greetings = client.getSent().filter((e) => e.type === 'response.create');
+    expect(greetings).toHaveLength(1);
+  });
+
+  it('does not greet before the Twilio stream has started', async () => {
+    const twilio = createMockTwilioWebSocket();
+    const client = createMockClient();
+    const bridge = new RealtimeBridge(twilio, client);
+
+    await client.emit({ type: 'session.created' });
+    expect(client.getSent().filter((e) => e.type === 'response.create')).toHaveLength(0);
+
+    bridge.handleTwilioMessage({
+      event: 'start',
+      start: { streamSid: 'stream-1', callSid: 'call-1' },
+    });
+    expect(client.getSent().filter((e) => e.type === 'response.create')).toHaveLength(1);
+  });
+
+  it('reads the caller number from Twilio stream custom parameters', async () => {
+    const twilio = createMockTwilioWebSocket();
+    const client = createMockClient();
+    const bridge = new RealtimeBridge(twilio, client);
+
+    bridge.handleTwilioMessage({
+      event: 'start',
+      start: { streamSid: 'stream-1', callSid: 'call-1', customParameters: { from: '+15551239999' } },
+    });
+    await client.emit({ type: 'session.created' });
+    await client.emit({
+      type: 'response.function_call_arguments.done',
+      name: 'escalate_emergency',
+      arguments: JSON.stringify({ situation_summary: 'Gas smell in the kitchen', confirmed: true }),
+      call_id: 'tc-caller-id',
+    });
+
+    const results = client.getSent().filter((e: any) => e.type === 'function_call_output');
+    expect(results).toHaveLength(1);
+    expect(results[0].result.data?.escalation?.callbackNumber).toBe('+15551239999');
+  });
+
   it('dispatches classify_call tool and returns a result', async () => {
     const twilio = createMockTwilioWebSocket();
     const client = createMockClient();

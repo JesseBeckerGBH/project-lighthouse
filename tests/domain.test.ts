@@ -63,6 +63,26 @@ describe('domain layer', () => {
       const result = classify('What is your address?');
       expect(result.intent).toBe('GENERAL_QUESTION');
     });
+
+    it('classifies a configured-fact question as GENERAL_QUESTION even when it contains lead keywords', () => {
+      const result = classify('What is your service area?');
+      expect(result.intent).toBe('GENERAL_QUESTION');
+    });
+
+    it('classifies an offered-services question as GENERAL_QUESTION', () => {
+      const result = classify('What services do you offer?');
+      expect(result.intent).toBe('GENERAL_QUESTION');
+    });
+
+    it('does not treat urgency alone as an emergency', () => {
+      const result = classify('I urgently need someone to install a new water heater');
+      expect(result.intent).toBe('NEW_LEAD');
+    });
+
+    it('still classifies real safety language as EMERGENCY', () => {
+      expect(classify('water is flooding the basement').intent).toBe('EMERGENCY');
+      expect(classify('I smell gas').intent).toBe('EMERGENCY');
+    });
   });
 
   describe('answerBusinessQuestion', () => {
@@ -82,6 +102,12 @@ describe('domain layer', () => {
       const result = answerBusinessQuestion('What is your business name?');
       expect(result.ok).toBe(true);
       expect(result.data).toBe(getConfig().businessName);
+    });
+
+    it('answers configured offered services', () => {
+      const result = answerBusinessQuestion('What services do you offer?');
+      expect(result.ok).toBe(true);
+      expect(result.data).toBe(getConfig().businessServices);
     });
 
     it('returns FACT_NOT_CONFIGURED for unknown facts', () => {

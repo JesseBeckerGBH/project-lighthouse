@@ -13,6 +13,7 @@ process.env.BUSINESS_NAME = 'JB Receptionist Demo';
 process.env.BUSINESS_TIMEZONE = 'America/Phoenix';
 process.env.BUSINESS_HOURS = 'Monday-Friday 8:00 AM-5:00 PM';
 process.env.BUSINESS_SERVICE_AREA = 'Chandler, Arizona';
+process.env.BUSINESS_SERVICES = 'Water heater repair, drain cleaning, leak detection';
 process.env.SCHEDULER_MODE = 'fake';
 process.env.NOTIFICATION_MODE = 'console';
 process.env.LOG_LEVEL = 'silent';

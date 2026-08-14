@@ -273,3 +273,13 @@ This version is feature-frozen. Before changing prompts, tool schemas, route con
 4. Update implementation and tests to match.
 
 Do not silently broaden the scope. Demo reliability and honest behavior take priority over additional features.
+
+## 16. v0.1.1 clarifications
+
+Approved corrections where the implementation did not satisfy this document. No scope is added and no excluded feature is enabled.
+
+1. **Initial greeting (section 2, criterion 1).** The receptionist speaks first. The bridge requests one greeting response once both the OpenAI session is configured and the Twilio stream has started; before the stream starts there is no `streamSid` to deliver audio on. The greeting identifies the business, states that this is a demo, and asks how it can help.
+2. **Caller number on voice (section 5).** Twilio's Media Streams `start` event does not contain the caller number, so `POST /twilio/voice` declares it as `<Parameter name="from" value="...">` on `<Stream>`, and the bridge reads `start.customParameters.from`. The known caller number is used as the callback number only when the agent does not supply one, which keeps section 9's rule that an emergency is never delayed to collect a field.
+3. **Idempotency keys are system-derived (section 8 and section 9).** Section 9 governs: keys are derived from channel, session identity, and the provider tool call id. `schedule_appointment` and `escalate_emergency` therefore do **not** expose an `idempotency_key` argument to the model, and the prompt does not ask for one. Section 8's input lists describe the workflow input, not the model-facing schema.
+4. **Offered services are configured (section 7 and section 11).** `BUSINESS_SERVICES` is a required configured fact. `answer_business_question` answers a question about the service list; a question about one specific unlisted service still returns `FACT_NOT_CONFIGURED` rather than guessing.
+5. **Classifier precedence (section 7).** Order is `EMERGENCY`, then `EXISTING_CUSTOMER`, then configured-fact questions as `GENERAL_QUESTION`, then `NEW_LEAD`, then `GENERAL_QUESTION` by default. Configured-fact questions must be answered even when they contain lead vocabulary ("service area" contains "service"). `EMERGENCY` matches immediate-risk language only; impatience terms such as "urgent" and "help me" are not safety signals and no longer escalate.

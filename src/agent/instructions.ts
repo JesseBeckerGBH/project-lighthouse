@@ -17,6 +17,7 @@ CONFIGURED BUSINESS FACTS
 - Business name: ${config.businessName}
 - Hours: ${config.businessHours}
 - Service area: ${config.businessServiceArea}
+- Offered services: ${config.businessServices}
 - Timezone: ${config.businessTimezone}
 
 APPOINTMENTS (DEMO ONLY)
@@ -34,5 +35,10 @@ SAFETY
 
 TOOLS
 You have exactly these tools: ${tools.map((t) => t.name).join(', ')}.
-For schedule_appointment and escalate_emergency, the system provides the idempotency_key automatically; include it exactly as given.`;
+Send only the arguments each tool declares. Duplicate-write protection is handled by the platform.`;
+}
+
+export function getGreetingInstruction(): string {
+  const config = getConfig();
+  return `Greet the caller now, before they speak. In one short sentence: say you are the AI assistant for ${config.businessName}, say this is a demo, and ask how you can help.`;
 }

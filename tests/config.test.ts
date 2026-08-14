@@ -15,6 +15,7 @@ const completeEnv: NodeJS.ProcessEnv = {
   BUSINESS_TIMEZONE: 'America/Phoenix',
   BUSINESS_HOURS: 'Monday-Friday 8:00 AM-5:00 PM',
   BUSINESS_SERVICE_AREA: 'Chandler, Arizona',
+  BUSINESS_SERVICES: 'Water heater repair, drain cleaning, leak detection',
   SCHEDULER_MODE: 'fake',
   NOTIFICATION_MODE: 'console',
   LOG_LEVEL: 'silent',
@@ -25,6 +26,16 @@ describe('config', () => {
     const config = getConfig(completeEnv);
     expect(config.businessName).toBe('JB Receptionist Demo');
     expect(config.port).toBe(3000);
+  });
+
+  it('exposes configured offered services', () => {
+    const config = getConfig(completeEnv);
+    expect(config.businessServices).toBe('Water heater repair, drain cleaning, leak detection');
+  });
+
+  it('requires BUSINESS_SERVICES', () => {
+    const partial = { ...completeEnv, BUSINESS_SERVICES: undefined } as unknown as NodeJS.ProcessEnv;
+    expect(() => getConfig(partial)).toThrow(/BUSINESS_SERVICES/);
   });
 
   it('throws for missing required variables without printing values', () => {

@@ -6,10 +6,11 @@ export interface Classification {
   reason: string;
 }
 
+// Only immediate-risk language belongs here (spec section 7). Terms that merely signal
+// impatience ('urgent', 'help me') are not safety signals and must not trigger escalation.
 const EMERGENCY_TERMS = [
   'emergency',
   'fire',
-  'flood',
   'flood',
   'gas',
   'leak',
@@ -31,9 +32,33 @@ const EMERGENCY_TERMS = [
   'water everywhere',
   'not safe',
   'unsafe',
-  'urgent',
-  'help me',
   '911',
+];
+
+// Questions about configured facts must be answered, not treated as leads, even when they
+// contain words that also appear in NEW_LEAD_TERMS ('service area' contains 'service').
+const FACT_QUESTION_PHRASES = [
+  'service area',
+  'what area',
+  'which area',
+  'areas do you',
+  'do you serve',
+  'your hours',
+  'business hours',
+  'what hours',
+  'hours of operation',
+  'are you open',
+  'when do you open',
+  'when are you open',
+  'what services',
+  'services do you',
+  'services you offer',
+  'what do you offer',
+  'kind of work',
+  'type of work',
+  'time zone',
+  'timezone',
+  'business name',
 ];
 
 const NEW_LEAD_TERMS = [
@@ -46,7 +71,8 @@ const NEW_LEAD_TERMS = [
   'book',
   'install',
   'repair',
-  'service',
+  'need service',
+  'service call',
   'interested',
   'looking for',
   'need a',
@@ -88,6 +114,14 @@ export function classify(summary: string): Classification {
       intent: 'EXISTING_CUSTOMER',
       confidence: 0.8,
       reason: 'References existing appointment or customer record',
+    };
+  }
+
+  if (hasTerms(summary, FACT_QUESTION_PHRASES)) {
+    return {
+      intent: 'GENERAL_QUESTION',
+      confidence: 0.9,
+      reason: 'Question matches a configured business fact',
     };
   }
 

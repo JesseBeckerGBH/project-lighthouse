@@ -58,18 +58,15 @@ export const tools: ToolDefinition[] = [
           description: 'Requested date and time window.',
         },
         confirmed: { type: 'boolean', description: 'Must be true after reading details back.' },
-        idempotency_key: {
-          type: 'string',
-          description: 'System-managed idempotency key; provided by the platform.',
-        },
       },
+      // No idempotency key: the platform derives it from the session and tool call id
+      // (spec section 9). Asking the model for it would make it invent one.
       required: [
         'caller_name',
         'callback_number',
         'service_summary',
         'requested_slot',
         'confirmed',
-        'idempotency_key',
       ],
     },
   },
@@ -83,12 +80,8 @@ export const tools: ToolDefinition[] = [
         situation_summary: { type: 'string', description: 'Sanitized situation summary.' },
         location: { type: 'string', description: 'Location if voluntarily provided.' },
         confirmed: { type: 'boolean', description: 'Acknowledgment; not required to record the escalation.' },
-        idempotency_key: {
-          type: 'string',
-          description: 'System-managed idempotency key; provided by the platform.',
-        },
       },
-      required: ['callback_number', 'situation_summary', 'confirmed', 'idempotency_key'],
+      required: ['callback_number', 'situation_summary', 'confirmed'],
     },
   },
 ];

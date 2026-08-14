@@ -23,11 +23,16 @@ twilioVoiceRouter.post('/', (req, res) => {
 
   const wsBase = config.publicBaseUrl.replace(/^http/, 'ws');
   const wsUrl = `${wsBase}/twilio/media`;
+  // The Media Streams `start` event does not include the caller number, so pass it
+  // explicitly as a custom parameter.
+  const from = (req.body?.From as string) ?? '';
 
   res.type('text/xml');
   res.send(
     `<?xml version="1.0" encoding="UTF-8"?>` +
-      `<Response><Connect><Stream url="${escapeXml(wsUrl)}"/></Connect></Response>`,
+      `<Response><Connect><Stream url="${escapeXml(wsUrl)}">` +
+      `<Parameter name="from" value="${escapeXml(from)}"/>` +
+      `</Stream></Connect></Response>`,
   );
 });
 

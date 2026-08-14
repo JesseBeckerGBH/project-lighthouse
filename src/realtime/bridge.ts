@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import { getSystemPrompt } from '../agent/instructions';
+import { getSystemPrompt, getGreetingInstruction } from '../agent/instructions';
 import { tools } from '../agent/tools';
 import { OpenAIRealtimeClient, OpenAIRealtimeEvent } from './client';
 import {
@@ -16,7 +16,9 @@ import { emit } from '../audit';
 interface StartPayload {
   streamSid: string;
   callSid: string;
-  from: string;
+  // Twilio's start event carries no `from` field; the caller number arrives as a
+  // <Parameter> declared on <Stream> in the voice TwiML.
+  customParameters?: Record<string, string>;
 }
 
 export class RealtimeBridge {
@@ -32,6 +34,7 @@ export class RealtimeBridge {
   private readonly maxPendingAudio = 20;
   private started = false;
   private sessionUpdated = false;
+  private greeted = false;
   private cleanedUp = false;
 
   constructor(twilioWs: WebSocket, openaiClient: OpenAIRealtimeClient) {
@@ -93,7 +96,7 @@ export class RealtimeBridge {
         const start = (message.start as StartPayload) ?? {};
         this.streamSid = start.streamSid ?? this.streamSid;
         this.callSid = start.callSid ?? this.callSid;
-        this.callerNumber = start.from ?? this.callerNumber;
+        this.callerNumber = start.customParameters?.from ?? this.callerNumber;
         this.started = true;
         emit({
           event: 'voice_in',
@@ -102,6 +105,7 @@ export class RealtimeBridge {
           sessionId: this.callSid,
           sanitizedSummary: 'Call started',
         });
+        this.maybeGreet();
         break;
       }
       case 'media': {
@@ -206,6 +210,37 @@ export class RealtimeBridge {
 
     this.sessionUpdated = true;
     this.flushPendingAudio();
+    this.maybeGreet();
+  }
+
+  // The caller must hear the receptionist first. Both sides have to be ready: the OpenAI
+  // session must be configured, and the Twilio stream must have started or the greeting
+  // audio has no streamSid to be delivered on.
+  private maybeGreet() {
+    if (this.greeted || this.cleanedUp) return;
+    if (!this.sessionUpdated || !this.started) return;
+
+    const sent = this.openaiClient.send({
+      type: 'response.create',
+      response: { instructions: getGreetingInstruction() },
+    });
+
+    if (!sent) {
+      emit({
+        event: 'error',
+        requestId: this.requestId,
+        channel: 'voice',
+        sessionId: this.callSid,
+        sanitizedSummary: 'Initial greeting failed to send',
+      });
+      return;
+    }
+
+    this.greeted = true;
+  }
+
+  private knownCallerNumber(): string | undefined {
+    return this.callerNumber === 'unknown' ? undefined : this.callerNumber;
   }
 
   private flushPendingAudio() {
@@ -241,7 +276,7 @@ export class RealtimeBridge {
             sessionId,
             toolCallId,
             callerName: parsed.caller_name ?? parsed.callerName,
-            callbackNumber: parsed.callback_number ?? parsed.callbackNumber,
+            callbackNumber: parsed.callback_number ?? parsed.callbackNumber ?? this.knownCallerNumber(),
             serviceSummary: parsed.service_summary ?? parsed.serviceSummary,
             requestedSlot: {
               date: requestedSlot.date,
@@ -258,7 +293,8 @@ export class RealtimeBridge {
             channel,
             sessionId,
             toolCallId,
-            callbackNumber: parsed.callback_number ?? parsed.callbackNumber,
+            // Never delay an emergency to collect a number Twilio already gave us.
+            callbackNumber: parsed.callback_number ?? parsed.callbackNumber ?? this.knownCallerNumber(),
             situationSummary: parsed.situation_summary ?? parsed.situationSummary,
             location: parsed.location,
             confirmed: parsed.confirmed,

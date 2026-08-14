@@ -49,6 +49,19 @@ describe('HTTP routes', () => {
       process.env.PUBLIC_BASE_URL = original;
     });
 
+    it('passes the caller number to the media stream as a custom parameter', async () => {
+      const config = getConfig();
+      const url = `${config.publicBaseUrl}/twilio/voice`;
+      const signature = getExpectedTwilioSignature(config.twilioAuthToken, url, fakeVoiceBody);
+      const res = await request(app)
+        .post('/twilio/voice')
+        .set('X-Twilio-Signature', signature)
+        .type('form')
+        .send(fakeVoiceBody);
+      expect(res.status).toBe(200);
+      expect(res.text).toContain('<Parameter name="from" value="+15551234567"/>');
+    });
+
     it('rejects an invalid Twilio signature', async () => {
       const res = await request(app)
         .post('/twilio/voice')
