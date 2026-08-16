@@ -22,12 +22,19 @@ export const tools: ToolDefinition[] = [
     parameters: {
       type: 'object',
       properties: {
+        intent: {
+          type: 'string',
+          description:
+            'Your classification of the caller\'s CURRENT intent. Re-send this tool with an updated intent whenever the caller corrects you.',
+          enum: ['EMERGENCY', 'NEW_LEAD', 'EXISTING_CUSTOMER', 'GENERAL_QUESTION'],
+        },
         summary: {
           type: 'string',
-          description: 'A brief, sanitized summary of the caller\'s request.',
+          description:
+            'A brief, sanitized summary of the caller\'s current request. Describe only what the caller said; do not restate earlier classifications.',
         },
       },
-      required: ['summary'],
+      required: ['intent', 'summary'],
     },
   },
   {

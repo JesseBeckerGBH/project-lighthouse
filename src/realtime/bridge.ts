@@ -10,8 +10,23 @@ import {
   AppointmentInput,
   EscalationInputFull,
 } from '../domain/service';
+import { isIntent } from '../domain/classifier';
+import { getConfig } from '../config';
 import { err, ok, Result, generateRequestId } from '../errors';
 import { emit } from '../audit';
+
+// Turn-lifecycle events, always recorded. Enough to tell "model stuck mid-turn"
+// from "never heard the caller" without logging conversation content.
+const LIFECYCLE_EVENTS = new Set([
+  'session.updated',
+  'response.created',
+  'response.done',
+  'input_audio_buffer.speech_started',
+  'input_audio_buffer.speech_stopped',
+  'input_audio_buffer.committed',
+  'error',
+  'close',
+]);
 
 interface StartPayload {
   streamSid: string;
@@ -70,6 +85,28 @@ export class RealtimeBridge {
       } catch {
         // Tool call failures are returned as function results.
       }
+    });
+
+    // A call that goes silent leaves no trace in the business audit log, so record
+    // the Realtime turn lifecycle: whether a response was created, whether it
+    // completed, and whether speech was detected. Types and error codes only --
+    // never transcripts or audio. ~12 lines per call at this level.
+    //
+    // Kept after diagnosing the 2026-08-16 stall, which reproduced once in four
+    // calls and has no confirmed root cause. Without this, a recurrence in front
+    // of a customer would be as unexplainable as the first one was.
+    this.openaiClient.on('*', (event) => {
+      const type = event.type ?? 'unknown';
+      if (!LIFECYCLE_EVENTS.has(type) && getConfig().logLevel !== 'debug') return;
+      const errorObj = event.error as { code?: string; type?: string } | undefined;
+      const code = errorObj?.code ?? errorObj?.type;
+      emit({
+        event: 'diagnostic',
+        requestId: this.requestId,
+        channel: 'voice',
+        sessionId: this.callSid,
+        sanitizedSummary: code ? `${type} (${code})` : type,
+      });
     });
 
     this.openaiClient.on('error', () => {
@@ -259,8 +296,11 @@ export class RealtimeBridge {
     try {
       switch (name) {
         case 'classify_call': {
-          const parsed = JSON.parse(args) as { summary: string };
-          result = await classifyCall(requestId, sessionId, channel, parsed.summary);
+          const parsed = JSON.parse(args) as { summary: string; intent?: string };
+          // Model output is untrusted: accept the intent only if it is one of the
+          // declared values, otherwise fall back to summary-based classification.
+          const reportedIntent = isIntent(parsed.intent) ? parsed.intent : undefined;
+          result = await classifyCall(requestId, sessionId, channel, parsed.summary, reportedIntent);
           break;
         }
         case 'answer_business_question': {

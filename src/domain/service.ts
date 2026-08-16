@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { Result, ok, err, generateRequestId } from '../errors';
-import { classify, Classification } from './classifier';
+import { classify, Classification, Intent } from './classifier';
 import { answerBusinessQuestion } from './faq';
 import { validateSlot, createFakeAppointment, FakeAppointment } from './fakeScheduler';
 import { validateEscalationInput, createEscalationRecord, EscalationRecord } from './escalation';
@@ -42,8 +42,9 @@ export async function classifyCall(
   sessionId: string,
   channel: 'voice' | 'sms',
   summary: string,
+  reportedIntent?: Intent,
 ): Promise<Result<Classification>> {
-  const classification = classify(summary);
+  const classification = classify(summary, reportedIntent);
   emit({
     event: 'classify',
     requestId,

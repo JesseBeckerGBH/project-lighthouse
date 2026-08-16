@@ -30,6 +30,10 @@ export function createOpenAIRealtimeClient(apiKey: string, model: string): OpenA
   const emit = (event: OpenAIRealtimeEvent) => {
     const set = handlers.get(event.type);
     if (set) set.forEach((h) => h(event));
+    // Wildcard listeners observe the event stream for diagnostics. Registered
+    // separately so a diagnostic listener can never consume a typed handler.
+    const wildcard = handlers.get('*');
+    if (wildcard) wildcard.forEach((h) => h(event));
   };
 
   ws.on('message', (data: WebSocket.Data) => {

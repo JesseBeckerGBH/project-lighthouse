@@ -14,7 +14,10 @@ export type AuditEventType =
   | 'call_end'
   | 'sms_in'
   | 'voice_in'
-  | 'error';
+  | 'error'
+  // OpenAI Realtime turn-lifecycle event types (no content). Distinguishes a
+  // silent stall from a missed turn; see LIFECYCLE_EVENTS in realtime/bridge.ts.
+  | 'diagnostic';
 
 export interface AuditEvent {
   event: AuditEventType;
