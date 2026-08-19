@@ -109,15 +109,23 @@ export class RealtimeBridge {
       });
     });
 
-    this.openaiClient.on('error', () => {
+    // Only a dead transport ends the call. A rejected request -- a malformed tool
+    // argument, a duplicate response.create -- is recoverable, and hanging up on it
+    // strands the caller in silence mid-conversation. Both live emergency calls on
+    // 2026-08-17 died this way, on conversation_already_has_active_response.
+    this.openaiClient.on('error', (event) => {
+      const fatal = event.fatal === true;
+      const detail = (event.error as { code?: string; type?: string } | undefined)?.code;
       emit({
         event: 'error',
         requestId: this.requestId,
         channel: 'voice',
         sessionId: this.callSid,
-        sanitizedSummary: 'OpenAI Realtime connection error',
+        sanitizedSummary: fatal
+          ? 'OpenAI Realtime connection error'
+          : `OpenAI Realtime request rejected (${detail ?? 'unknown'})`,
       });
-      this.cleanup();
+      if (fatal) this.cleanup();
     });
 
     this.openaiClient.on('close', () => {
@@ -257,12 +265,9 @@ export class RealtimeBridge {
     if (this.greeted || this.cleanedUp) return;
     if (!this.sessionUpdated || !this.started) return;
 
-    const sent = this.openaiClient.send({
-      type: 'response.create',
-      response: { instructions: getGreetingInstruction() },
-    });
+    const outcome = this.openaiClient.requestResponse({ instructions: getGreetingInstruction() });
 
-    if (!sent) {
+    if (outcome === 'failed') {
       emit({
         event: 'error',
         requestId: this.requestId,

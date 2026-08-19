@@ -41,6 +41,10 @@ function createMockClient(): MockClient {
       sent.push(event);
       return true;
     },
+    requestResponse(response?: any) {
+      sent.push(response ? { type: 'response.create', response } : { type: 'response.create' });
+      return 'sent';
+    },
     close() {
       sent.push({ type: 'close' });
     },
@@ -350,6 +354,43 @@ describe('realtime bridge', () => {
 
     expect(twilio.close).toHaveBeenCalledTimes(1);
     expect(client.getSent().filter((e: any) => e.type === 'close')).toHaveLength(1);
+  });
+
+  // Observed on both live emergency calls: the escalation confirmation was rejected
+  // with conversation_already_has_active_response, and the error handler hung up on
+  // the caller mid-conversation instead of letting the call continue.
+  it('stays on the call when OpenAI rejects a single request', async () => {
+    const twilio = createMockTwilioWebSocket();
+    const client = createMockClient();
+    const bridge = new RealtimeBridge(twilio, client);
+
+    bridge.handleTwilioMessage({
+      event: 'start',
+      start: { streamSid: 'stream-1', callSid: 'call-1', from: '+1111' },
+    });
+    await client.emit({ type: 'session.created' });
+    await client.emit({
+      type: 'error',
+      error: { type: 'invalid_request_error', code: 'conversation_already_has_active_response' },
+    });
+
+    expect(twilio.close).not.toHaveBeenCalled();
+    expect(client.getSent().filter((e: any) => e.type === 'close')).toHaveLength(0);
+  });
+
+  it('ends the call when the OpenAI connection itself fails', async () => {
+    const twilio = createMockTwilioWebSocket();
+    const client = createMockClient();
+    const bridge = new RealtimeBridge(twilio, client);
+
+    bridge.handleTwilioMessage({
+      event: 'start',
+      start: { streamSid: 'stream-1', callSid: 'call-1', from: '+1111' },
+    });
+    await client.emit({ type: 'session.created' });
+    await client.emit({ type: 'error', fatal: true, error: 'OpenAI Realtime connection error' });
+
+    expect(twilio.close).toHaveBeenCalledTimes(1);
   });
 
   it('cleans up provider connections on stop and is idempotent', () => {
